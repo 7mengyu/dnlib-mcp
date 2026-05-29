@@ -2,12 +2,35 @@
 
 import clr
 import sys
+import os
 from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass, field
 
-# dnlib路径，用户需要设置
-DNLIB_PATH: Optional[str] = None
+
+def _get_default_dnlib_path() -> Optional[str]:
+    """获取默认的dnlib.dll路径"""
+    # 优先级：环境变量 > 项目目录 > 当前工作目录
+    env_path = os.environ.get("DNLIB_PATH")
+    if env_path and Path(env_path).exists():
+        return env_path
+
+    # 项目根目录（src/backends 的上两级）
+    project_root = Path(__file__).parent.parent.parent
+    project_dll = project_root / "dnlib.dll"
+    if project_dll.exists():
+        return str(project_dll)
+
+    # 当前工作目录
+    cwd_dll = Path.cwd() / "dnlib.dll"
+    if cwd_dll.exists():
+        return str(cwd_dll)
+
+    return None
+
+
+# dnlib默认路径（自动检测）
+DNLIB_PATH: Optional[str] = _get_default_dnlib_path()
 
 _dll_loaded = False
 
@@ -26,7 +49,10 @@ def _ensure_dnlib_loaded() -> None:
 
     if DNLIB_PATH is None:
         raise RuntimeError(
-            "dnlib path not set. Call set_dnlib_path() first or set DNLIB_PATH environment variable."
+            "dnlib.dll not found. Please either:\n"
+            "1. Place dnlib.dll in the project root directory, or\n"
+            "2. Set DNLIB_PATH environment variable, or\n"
+            "3. Call dnlib_set_path tool with the dll path"
         )
 
     dll_path = Path(DNLIB_PATH)

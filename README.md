@@ -29,12 +29,13 @@ venv\Scripts\pip install -r requirements.txt
 
 ### 3. Download dnlib.dll
 
+**Important**: Place `dnlib.dll` in the project root directory. The system will automatically detect and load it.
+
 **Method 1: Using curl (Recommended)**
 
 ```bash
 # Windows (PowerShell/CMD)
 curl -L -o dnlib.nupkg "https://www.nuget.org/api/v2/package/dnlib"
-# Extract (requires unzip)
 unzip -o dnlib.nupkg -d dnlib-temp
 cp dnlib-temp/lib/net45/dnlib.dll .
 rm -rf dnlib-temp dnlib.nupkg
@@ -79,11 +80,22 @@ After configuration, **restart Claude Code** to load the MCP server.
 
 ## Usage
 
+### Auto-Initialization
+
+The system automatically detects `dnlib.dll` in the following locations (in order of priority):
+
+1. `DNLIB_PATH` environment variable
+2. Project root directory (`dnlib.dll` in the same folder as this README)
+3. Current working directory
+
+If `dnlib.dll` is in the project root, no manual initialization is needed.
+
 ### Available Tools
 
 | Tool | Description |
 |------|-------------|
-| `dnlib_set_path` | Initialize dnlib with path to dnlib.dll (must call first) |
+| `dnlib_status` | Check initialization status and current dnlib.dll path |
+| `dnlib_set_path` | Manually set dnlib.dll path (optional if dll is in project root) |
 | `dnlib_load_assembly` | Load a .NET assembly (.dll/.exe) |
 | `dnlib_list_types` | List all types in assembly |
 | `dnlib_get_type` | Get type details (methods, fields, properties) |
@@ -93,21 +105,31 @@ After configuration, **restart Claude Code** to load the MCP server.
 | `dnlib_get_entry_point` | Get assembly entry point (Main) |
 | `dnlib_list_resources` | List embedded resources |
 
+### Quick Start
+
+If `dnlib.dll` is in the project root, you can start directly:
+
+```
+加载程序集 D:\Games\SomeGame\Game.exe
+```
+
+To check initialization status:
+
+```
+检查 dnlib 状态
+```
+
 ### Step-by-Step Usage Guide
 
-#### Step 1: Initialize dnlib
+#### Step 1: Check Status (Optional)
 
-After restarting Claude Code, tell the AI to initialize dnlib:
-
-```
-初始化 dnlib，路径是 C:\Users\scydr\Desktop\123\456\reverse-tools-mcp\dnlib.dll
-```
-
-Or in English:
+Verify dnlib is properly initialized:
 
 ```
-Initialize dnlib with path: C:\path\to\your\dnlib.dll
+检查 dnlib 状态
 ```
+
+Or use the tool directly to see the current path and initialization state.
 
 #### Step 2: Load Target Assembly
 
@@ -115,12 +137,6 @@ Load the .NET assembly you want to analyze:
 
 ```
 加载程序集 D:\Games\SomeGame\Game.exe
-```
-
-Or:
-
-```
-Load assembly: D:\Games\SomeGame\Game.exe
 ```
 
 The tool will return assembly info including name, version, and modules.
@@ -175,10 +191,14 @@ Locate the Main method:
 ### Complete Example Conversation
 
 ```
-User: 初始化 dnlib，路径是 C:\Tools\dnlib.dll
+User: 检查 dnlib 状态
 
-AI: [Calls dnlib_set_path tool]
-dnlib initialized successfully from: C:\Tools\dnlib.dll
+AI: [Calls dnlib_status tool]
+{
+  "initialized": true,
+  "dnlib_path": "C:\\path\\to\\nixiang_mcp\\dnlib.dll",
+  "message": "dnlib is ready"
+}
 
 User: 加载程序集 D:\Games\MyGame\MyGame.exe
 
