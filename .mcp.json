@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "reverse-tools": {
+      "command": "python",
+      "args": ["-m", "src.server"]
+    }
+  }
+}
