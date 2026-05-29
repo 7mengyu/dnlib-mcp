@@ -17,17 +17,25 @@ git clone https://github.com/7mengyu/nixiang_mcp.git
 cd nixiang_mcp
 ```
 
-### 2. Create virtual environment and install dependencies
+### 2. One-click setup
+
+```bash
+# Windows: double-click setup.bat, or run:
+setup.bat
+```
+
+This script will:
+- Create Python virtual environment
+- Install dependencies (mcp, pythonnet)
+- Download dnlib.dll automatically
+
+### Manual setup (alternative)
 
 ```bash
 python -m venv venv
-# Windows
 venv\Scripts\pip install -r requirements.txt
-# Linux/macOS
-./venv/bin/pip install -r requirements.txt
+# Then download dnlib.dll manually (see below)
 ```
-
-### 3. Download dnlib.dll
 
 **Important**: Place `dnlib.dll` in the project root directory. The system will automatically detect and load it.
 
