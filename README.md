@@ -62,21 +62,16 @@ rm -rf dnlib-temp dnlib.nupkg
 
 ## Configuration
 
-Add to your Claude Code settings (`~/.claude/settings.json`):
+This project uses `.mcp.json` for automatic MCP server registration. No manual configuration is needed.
 
-```json
-{
-  "mcpServers": {
-    "reverse-tools": {
-      "command": "C:\\path\\to\\nixiang_mcp\\venv\\Scripts\\python",
-      "args": ["-m", "src.server"],
-      "cwd": "C:\\path\\to\\nixiang_mcp"
-    }
-  }
-}
+Simply start Claude Code in the project directory:
+
+```bash
+cd nixiang_mcp
+claude
 ```
 
-After configuration, **restart Claude Code** to load the MCP server.
+Claude Code will detect `.mcp.json` and prompt you to approve the `reverse-tools` server on first launch. Run `/mcp` to check status or approve.
 
 ## Usage
 
@@ -251,6 +246,47 @@ IL_0007: ret
 ```
 
 ### Tips for Game Reverse Engineering
+
+#### Finding Save Encryption Keys (Mono/Unity)
+
+Typical workflow for extracting encryption keys from `Assembly-CSharp.dll`:
+
+**1. Load and search for save-related types:**
+```
+加载程序集 D:\Game\MyGame_Data\Managed\Assembly-CSharp.dll
+搜索包含 "Save" 的类型
+搜索包含 "Encrypt" 的类型
+搜索包含 "Crypto" 的类型
+```
+
+**2. Inspect suspected classes for hardcoded keys:**
+```
+查看 SaveManager 类的详细信息
+```
+
+Static fields often contain hardcoded keys or IV values. Pay attention to:
+- `static` fields of type `System.String` or `System.Byte[]`
+- Fields named `KEY`, `IV`, `SALT`, `SECRET`, `PASSWORD`
+
+**3. Decompile encryption methods to understand the algorithm:**
+```
+反编译 SaveManager.EncryptData 方法
+反编译 SaveManager.DecryptData 方法
+```
+
+**4. If keys are derived, trace the derivation logic by decompiling helper methods.**
+
+#### Common Search Keywords
+
+| Direction | Keywords |
+|-----------|----------|
+| Save/Load | Save, Load, Data, Progress, Slot, File |
+| Encryption | Encrypt, Decrypt, Crypto, AES, XOR, Cipher, Rijndael |
+| Serialization | Serialize, Deserialize, Json, Binary, Base64, Formatter |
+| Keys/Secrets | Key, IV, Salt, Secret, Password, Token, Hash |
+| Storage | Path, File, PersistentData, Application, SaveData |
+
+#### General Tips
 
 1. **Find key classes**: Search for terms like "Player", "Health", "Money", "Inventory", "Weapon"
 2. **Locate modifying methods**: Look for "Add", "Set", "Update", "Increase" method names

@@ -23,6 +23,10 @@ build/
 .pytest_cache/
 .coverage
 
+# dnlib download artifacts
+*.nupkg
+*.zip
+
 # Misc
 .DS_Store
 Thumbs.db
