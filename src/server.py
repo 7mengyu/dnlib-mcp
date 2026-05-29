@@ -32,7 +32,7 @@ def _try_auto_init() -> bool:
 
 def create_server() -> Server:
     """创建MCP服务器实例"""
-    server = Server("reverse-tools-mcp")
+    server = Server("dnlib-mcp")
 
     # 尝试自动初始化
     _try_auto_init()

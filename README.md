@@ -1,20 +1,18 @@
-# Reverse Tools MCP Server
+# dnlib MCP Server
 
-MCP Server for reverse engineering tools integration with AI coding assistants.
+MCP Server for .NET assembly analysis using dnlib, integrated with AI coding assistants.
 
 ## Supported Tools
 
-- **dnlib Backend**: Static analysis of .NET assemblies
-- **x64dbg Backend**: (Planned) Debugger automation
-- **Cheat Engine Backend**: (Planned) Memory scanning
+- **dnlib Backend**: Static analysis of .NET assemblies (type search, method decompilation, IL analysis)
 
 ## Installation
 
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/7mengyu/nixiang_mcp.git
-cd nixiang_mcp
+git clone https://github.com/7mengyu/dnlib-mcp.git
+cd dnlib-mcp
 ```
 
 ### 2. One-click setup
@@ -75,7 +73,7 @@ This project uses `.mcp.json` for automatic MCP server registration. No manual c
 Simply start Claude Code in the project directory:
 
 ```bash
-cd nixiang_mcp
+cd dnlib-mcp
 claude
 ```
 
@@ -199,7 +197,7 @@ User: 检查 dnlib 状态
 AI: [Calls dnlib_status tool]
 {
   "initialized": true,
-  "dnlib_path": "C:\\path\\to\\nixiang_mcp\\dnlib.dll",
+  "dnlib_path": "C:\\path\\to\\dnlib-mcp\\dnlib.dll",
   "message": "dnlib is ready"
 }
 
