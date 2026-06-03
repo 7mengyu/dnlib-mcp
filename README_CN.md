@@ -101,8 +101,9 @@ Claude Code 会自动检测 `.mcp.json`，首次启动时会提示批准 `revers
 | `de4dot_set_path` | 手动设置 de4dot.exe 路径（通常不需要） |
 | `de4dot_detect` | 检测混淆器类型（-d 模式，不改动文件） |
 | `de4dot_list_obfuscators` | 列出所有支持的混淆器类型 |
-| `de4dot_deobfuscate` | 解混淆程序集，输出清理后的文件 |
+| `de4dot_deobfuscate` | 完整解混淆，支持全部高级选项（重命名、控制流、字符串、token） |
 | `de4dot_clean_strings` | 仅解密字符串，保留结构不变 |
+| `de4dot_batch_deobfuscate` | 批量处理目录下所有 .NET 程序集 |
 
 ### 快速开始
 

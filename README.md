@@ -101,8 +101,9 @@ The system automatically detects resources in the following locations (in order 
 | `de4dot_set_path` | Set de4dot.exe path (optional) |
 | `de4dot_detect` | Detect obfuscator type (-d mode, no modification) |
 | `de4dot_list_obfuscators` | List all supported obfuscator types |
-| `de4dot_deobfuscate` | Deobfuscate an assembly, output cleaned file |
+| `de4dot_deobfuscate` | Deobfuscate an assembly with full options (rename, cflow, strings, tokens) |
 | `de4dot_clean_strings` | Decrypt strings only, preserve structure |
+| `de4dot_batch_deobfuscate` | Batch process all .NET files in a directory |
 
 ### Quick Start
 
