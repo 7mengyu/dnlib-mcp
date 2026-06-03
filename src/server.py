@@ -181,19 +181,28 @@ def create_server() -> Server:
             ),
             Tool(
                 name="de4dot_list_obfuscators",
-                description="列出de4dot支持的所有混淆器类型",
+                description="列出de4dot支持的所有混淆器类型及缩写",
                 inputSchema={"type": "object", "properties": {}, "required": []}
             ),
             Tool(
                 name="de4dot_deobfuscate",
-                description="对程序集执行反混淆，输出清理后的文件",
+                description="对程序集执行反混淆，输出清理后的文件。支持所有高级选项",
                 inputSchema={
                     "type": "object",
                     "properties": {
                         "path": {"type": "string", "description": "程序集文件路径"},
-                        "output": {"type": "string", "description": "输出文件路径（可选，默认在原文件名加-cleaned后缀）"},
+                        "output": {"type": "string", "description": "输出文件路径（可选，默认加-cleaned后缀）"},
                         "obfuscator_type": {"type": "string", "description": "强制指定混淆器类型（可选，如 un/df/co/cf 等）"},
-                        "rename": {"type": "boolean", "description": "是否重命名符号（默认true）"}
+                        "rename": {"type": "boolean", "description": "是否重命名符号（默认true）"},
+                        "keep_names": {"type": "string", "description": "保留特定符号名不重命名，组合使用: n(命名空间) t(类型) p(属性) e(事件) f(字段) m(方法) a(参数) g(泛型) d(委托字段)。如: nefm 保留命名空间/事件/字段/方法"},
+                        "no_cflow": {"type": "boolean", "description": "跳过控制流反混淆（默认false）"},
+                        "only_cflow": {"type": "boolean", "description": "仅执行控制流反混淆，跳过字符串解密和重命名（默认false）"},
+                        "str_type": {"type": "string", "description": "字符串解密类型: none/default/static/delegate/emulate"},
+                        "str_token": {"type": "string", "description": "指定解密方法的token或签名 [type::][name][(args,...)]"},
+                        "keep_types": {"type": "boolean", "description": "保留混淆器添加的类型/字段/方法（默认false）"},
+                        "preserve_tokens": {"type": "boolean", "description": "保留重要的元数据token（默认false）"},
+                        "preserve_table": {"type": "string", "description": "精细控制保留哪些表的RID"},
+                        "load_new_process": {"type": "boolean", "description": "在新进程中加载程序集做字符串解密（默认false）"}
                     },
                     "required": ["path"]
                 }
@@ -205,10 +214,30 @@ def create_server() -> Server:
                     "type": "object",
                     "properties": {
                         "path": {"type": "string", "description": "程序集文件路径"},
-                        "str_type": {"type": "string", "description": "字符串解密类型（default/static/delegate/emulate）"},
-                        "output": {"type": "string", "description": "输出文件路径（可选）"}
+                        "str_type": {"type": "string", "description": "字符串解密类型（none/default/static/delegate/emulate）"},
+                        "str_token": {"type": "string", "description": "指定解密方法token或签名"},
+                        "output": {"type": "string", "description": "输出文件路径（可选）"},
+                        "load_new_process": {"type": "boolean", "description": "在新进程中加载程序集（默认false）"}
                     },
                     "required": ["path"]
+                }
+            ),
+            Tool(
+                name="de4dot_batch_deobfuscate",
+                description="批量反混淆目录下的所有.NET程序集，适合处理Game/Managed目录",
+                inputSchema={
+                    "type": "object",
+                    "properties": {
+                        "input_dir": {"type": "string", "description": "输入目录路径（含多个.dll/.exe）"},
+                        "output_dir": {"type": "string", "description": "输出目录路径（可选）"},
+                        "skip_unsupported": {"type": "boolean", "description": "跳过不支持的混淆文件（默认false）"},
+                        "obfuscator_type": {"type": "string", "description": "强制指定混淆器类型（可选）"},
+                        "rename": {"type": "boolean", "description": "是否重命名符号（默认true）"},
+                        "keep_names": {"type": "string", "description": "保留特定符号名（如: ntm 保留命名空间/类型/方法）"},
+                        "no_cflow": {"type": "boolean", "description": "跳过控制流反混淆（默认false）"},
+                        "str_type": {"type": "string", "description": "字符串解密类型（可选）"}
+                    },
+                    "required": ["input_dir"]
                 }
             ),
         ]
@@ -308,11 +337,10 @@ def create_server() -> Server:
 
             if name.startswith("de4dot_") and _de4dot is None:
                 if not _try_auto_init_de4dot():
-                    return err("de4dot not initialized. Place de4dot.exe in project root or call de4dot_set_path.")
+                    return err("de4dot not initialized. Place de4dot.exe in de4dot/ subdirectory or call de4dot_set_path.")
 
             if name == "de4dot_detect":
-                result = _de4dot.detect(arguments["path"])
-                return ok(result)
+                return ok(_de4dot.detect(arguments["path"]))
 
             elif name == "de4dot_list_obfuscators":
                 return [TextContent(type="text", text=json.dumps(
@@ -323,7 +351,16 @@ def create_server() -> Server:
                     arguments["path"],
                     output=arguments.get("output"),
                     obfuscator_type=arguments.get("obfuscator_type"),
-                    rename=arguments.get("rename", True)
+                    rename=arguments.get("rename", True),
+                    keep_names=arguments.get("keep_names", ""),
+                    no_cflow=arguments.get("no_cflow", False),
+                    only_cflow=arguments.get("only_cflow", False),
+                    str_type=arguments.get("str_type", ""),
+                    str_token=arguments.get("str_token", ""),
+                    keep_types=arguments.get("keep_types", False),
+                    preserve_tokens=arguments.get("preserve_tokens", False),
+                    preserve_table=arguments.get("preserve_table", ""),
+                    load_new_process=arguments.get("load_new_process", False),
                 )
                 return ok({
                     "success": result.success,
@@ -337,12 +374,31 @@ def create_server() -> Server:
                 result = _de4dot.clean_strings(
                     arguments["path"],
                     str_type=arguments.get("str_type", "default"),
-                    output=arguments.get("output")
+                    str_token=arguments.get("str_token", ""),
+                    output=arguments.get("output"),
+                    load_new_process=arguments.get("load_new_process", False),
                 )
                 return ok({
                     "success": result.success,
                     "output_path": result.output_path,
                     "stdout": result.stdout[:2000] if result.stdout else ""
+                })
+
+            elif name == "de4dot_batch_deobfuscate":
+                result = _de4dot.batch_deobfuscate(
+                    arguments["input_dir"],
+                    output_dir=arguments.get("output_dir"),
+                    skip_unsupported=arguments.get("skip_unsupported", False),
+                    obfuscator_type=arguments.get("obfuscator_type"),
+                    rename=arguments.get("rename", True),
+                    keep_names=arguments.get("keep_names", ""),
+                    no_cflow=arguments.get("no_cflow", False),
+                    str_type=arguments.get("str_type", ""),
+                )
+                return ok({
+                    "success": result.success,
+                    "stdout": result.stdout[:2000] if result.stdout else "",
+                    "stderr": result.stderr[:1000] if result.stderr else ""
                 })
 
             else:
