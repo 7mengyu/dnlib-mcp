@@ -104,12 +104,12 @@ class De4dotBackend:
         in_section = False
 
         for line in stdout.split("\n"):
-            if "---" in line:
+            if "String decrypter types" in line:
                 in_section = False
-            if "Formal obfuscator type names" in line:
+            if "Deobfuscator options:" in line:
                 in_section = True
                 continue
-            if in_section and ":" in line and "(" in line:
+            if in_section and line.startswith("Type ") and "(" in line:
                 name = line.strip()
                 if name:
                     obfuscators.append(name)
