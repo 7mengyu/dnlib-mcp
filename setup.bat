@@ -12,7 +12,7 @@ if not exist venv (
 
 REM 安装依赖
 echo [2/2] Installing dependencies...
-venv\Scripts\pip install -r requirements.txt -q
+venv\Scripts\pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/ -q
 
 echo.
 echo === Setup Complete ===
