@@ -1,5 +1,7 @@
 # dnlib MCP Server
 
+[中文文档](README_CN.md)
+
 MCP Server for .NET assembly analysis using dnlib and de4dot, integrated with AI coding assistants.
 
 ## Supported Tools
