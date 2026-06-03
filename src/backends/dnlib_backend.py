@@ -265,13 +265,18 @@ class DnlibBackend:
 
         module = self._loaded_modules[path]
 
+        found_type = None
         for td in module.Types:
             if _to_string(td.FullName) == type_full_name:
+                found_type = td
                 for md in td.Methods:
                     if _to_string(md.Name) == method_name:
                         return self._get_method_il(md)
 
-        return ""
+        if found_type is None:
+            raise ValueError(f"Type not found: {type_full_name}")
+        else:
+            raise ValueError(f"Method not found: {method_name} in type {type_full_name}")
 
     def get_entry_point(self, path: str) -> Optional[dict]:
         """获取程序入口点"""

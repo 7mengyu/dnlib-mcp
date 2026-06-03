@@ -194,6 +194,7 @@ class De4dotBackend:
         args = ["-r", input_dir]
 
         if output_dir:
+            Path(output_dir).mkdir(parents=True, exist_ok=True)
             args.extend(["-ro", output_dir])
         if skip_unsupported:
             args.append("-ru")
@@ -222,6 +223,12 @@ class De4dotBackend:
                       load_new_process: bool = False,
                       ) -> DeobfuscateResult:
         """仅解密字符串"""
+        if not Path(path).exists():
+            return DeobfuscateResult(
+                success=False,
+                errors=[f"File not found: {path}"]
+            )
+
         if not output:
             src = Path(path)
             output = str(src.parent / f"{src.stem}-strdec{src.suffix}")
