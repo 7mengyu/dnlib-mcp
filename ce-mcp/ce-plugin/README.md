@@ -17,19 +17,87 @@ CE 插件作为 TCP **客户端**，启动时连接 Python MCP Server。MCP Serv
 
 ## 编译
 
-需要 Visual Studio 或 MSVC Build Tools。SDK 头文件已放在 `sdk/` 目录，无需额外配置。
+### 环境要求
 
-```bash
-# 在 ce-mcp/ce-plugin/ 目录下执行：
+- **Windows SDK**（提供 `cl.exe`、`link.exe`、`ws2_32.lib`、`dbghelp.lib`、`kernel32.lib` 等）
+- **CE SDK 头文件**：已放在 `sdk/` 目录，无需额外配置
 
-# x64 编译:
+依赖的 Windows 库：
+
+| 库文件 | 提供者 | 说明 |
+|--------|--------|------|
+| `ws2_32.lib` | Windows SDK | Winsock2（TCP 通信） |
+| `dbghelp.lib` | Windows SDK | StackWalk64 / SymInitialize / UnDecorateSymbolNameA |
+| `kernel32.lib` | Windows SDK | 隐式链接（CreateThread / Sleep 等） |
+
+### Visual Studio 编译
+
+#### 方式 1：Developer Command Prompt（推荐）
+
+1. 打开 **开始菜单** → 搜索 **"Developer Command Prompt for VS"**
+
+2. 选择对应的版本：
+   - **x64 Native Tools Command Prompt for VS** → 编译 64 位 DLL
+   - **x86 Native Tools Command Prompt for VS** → 编译 32 位 DLL
+
+3. 切换到插件目录并编译：
+
+```cmd
+cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
+
+:: x64 编译
 cl /LD /O2 ce-mcp-plugin.c /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 
-# x86 编译:
+:: x86 编译
 cl /LD /O2 ce-mcp-plugin.c /Fe:ce-mcp-plugin-x86.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 ```
 
-编译器需能访问 `sdk/` 目录中的头文件。编译完成后将 `.dll` 放入 CE 的插件目录或手动加载。
+#### 方式 2：普通 cmd（需先运行 vcvars）
+
+```cmd
+:: 设置 VS 环境变量（根据安装路径调整）
+call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
+
+:: 然后编译
+cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
+cl /LD /O2 ce-mcp-plugin.c /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+```
+
+#### 方式 3：VS IDE 创建项目
+
+1. **File** → **New** → **Project from Existing Code**
+2. 项目类型选 **Dynamic Link Library (DLL)**
+3. 添加 `ce-mcp-plugin.c` 和 `ce-mcp-plugin.def`
+4. **Project Properties** → **Linker** → **Input** → **Additional Dependencies** 添加：
+   ```
+   ws2_32.lib dbghelp.lib
+   ```
+5. **C/C++** → **General** → **Additional Include Directories** 添加 `sdk/` 目录
+6. 选择 **x64** 或 **x86** 配置，Build
+
+### 编译参数说明
+
+| 参数 | 含义 |
+|------|------|
+| `/LD` | 生成 DLL |
+| `/O2` | 优化速度 |
+| `/Fe:` | 指定输出文件名 |
+| `/link` | 传递给链接器的参数 |
+| `/DEF:` | 模块定义文件（控制导出符号） |
+
+编译完成后将生成的 `.dll` 复制到 CE 的插件目录（通常在 CE 安装目录下创建 `plugin` 文件夹），或通过 CE 菜单手动加载。
+
+### 验证编译结果
+
+```cmd
+:: 检查 DLL 是否成功导出了 CE 要求的三个函数
+dumpbin /EXPORTS ce-mcp-plugin-x64.dll
+```
+
+应看到以下导出：
+- `CEPlugin_GetVersion`
+- `CEPlugin_InitializePlugin`
+- `CEPlugin_DisablePlugin`
 
 ## 支持的命令 (22条)
 
