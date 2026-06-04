@@ -61,8 +61,11 @@ cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
 :: 清理上次编译产物（obj/lib/exp 会触发增量链接，可能导致冲突）
 del /q *.obj *.lib *.exp 2>nul
 
-:: x64 编译
+:: 发布版
 cl /utf-8 /TC /LD /O2 plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+
+:: 调试版 (PDB 符号 + 禁用优化，出问题时用 VS 附加 CE 断点排查)
+cl /utf-8 /TC /LD /Od /Zi plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c /Fe:ce-mcp-plugin-x64-debug.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 ```
 
 3. 打开 **"x86 Native Tools Command Prompt for VS 2022"**（注：x86 和 x64 必须在各自对应的终端编译）并执行：
@@ -74,11 +77,11 @@ cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
 del /q *.obj *.lib *.exp 2>nul
 
 :: x86 编译
-cl /TC /LD /O2 plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c /Fe:ce-mcp-plugin-x86.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+cl /utf-8 /TC /LD /O2 plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c /Fe:ce-mcp-plugin-x86.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 ```
 
 > `/TC` 强制将所有 `.c` 文件视为 C 源码。
-> `/O2` 可改为 `/Od /Zi` 来生成调试版本（保留符号，方便排查）。
+> `/O2` 是发布版开关。日常用发布版跑，出问题时用上面的调试版（`/Od /Zi`）来 VS 断点排查。
 
 ### 方式 2：手动设置 vcvars
 
