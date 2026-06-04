@@ -1,12 +1,12 @@
 {
   "mcpServers": {
     "dnlib-mcp": {
-      "command": "${PROJECT_ROOT}/venv/Scripts/python.exe",
+      "command": "../venv/Scripts/python.exe",
       "args": ["-m", "src.server"],
       "cwd": "${PROJECT_ROOT}/dnlib-mcp"
     },
     "ce-mcp": {
-      "command": "${PROJECT_ROOT}/venv/Scripts/python.exe",
+      "command": "../venv/Scripts/python.exe",
       "args": ["-m", "src.server"],
       "cwd": "${PROJECT_ROOT}/ce-mcp"
     }
