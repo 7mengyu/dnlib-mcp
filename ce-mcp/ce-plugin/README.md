@@ -15,82 +15,89 @@ CE (插件 DLL) --TCP Client--> Python MCP Server (bridge.py) --stdio--> Claude 
 
 CE 插件作为 TCP **客户端**，启动时连接 Python MCP Server。MCP Server 再通过 stdio 与 Claude Code 通信。
 
+## 项目结构
+
+```
+ce-plugin/
+├── plugin.h              # 公共头文件 (类型定义、ppinter 宏、函数声明)
+├── plugin-core.c         # 核心框架 (网络/解析/生命周期/命令分发)
+├── plugin-debug.c        # 调试追踪 (SET_BP/GET_REGISTERS/GET_CALLSTACK/REGISTER_TRACE)
+├── plugin-analyze.c      # 分析命令 (DISASSEMBLE/AOB_SCAN/PREV_OPCODE/NEXT_OPCODE/ASSEMBLE/
+│                         #            GET_SYMBOL_INFO/ENUM_MEMORY_REGIONS/GET_RTTI_CLASS/
+│                         #            ENUM_STRINGS/PING/READ_MEMORY/GET_MODULES/GET_PROCESS_LIST/
+│                         #            RESOLVE_POINTER)
+├── plugin-scan.c         # 内存扫描 (MEMORY_SCAN/MEMORY_SCAN_NEXT)
+├── plugin-gen.c          # 脚本生成 (GENERATE_HOOK/GENERATE_API_HOOK)
+├── ce-mcp-plugin.def     # DLL 导出符号
+├── sdk/cepluginsdk.h     # CE 7.5 SDK 头文件
+├── sdk/lua.h             # Lua C API 头文件
+├── sdk/lualib.h          # Lua 标准库
+├── sdk/lauxlib.h         # Lua 辅助库
+├── sdk/luaconf.h         # Lua 配置
+└── sdk/lua.hpp           # Lua C++ 包装
+
+../src/
+├── server.py             # MCP Server (23 个工具)
+├── bridge.py             # TCP 桥接
+└── __init__.py
+```
+
 ## 编译
 
 ### 环境要求
 
-- **Windows SDK**（提供 `cl.exe`、`link.exe`、`ws2_32.lib`、`dbghelp.lib`、`kernel32.lib` 等）
+- **Visual Studio 2022 Build Tools**（提供 `cl.exe`、`link.exe`）
+- **Windows SDK**（提供 `ws2_32.lib`、`dbghelp.lib`）
 - **CE SDK 头文件**：已放在 `sdk/` 目录，无需额外配置
 
-依赖的 Windows 库：
+### 方式 1：Developer Command Prompt（推荐）
 
-| 库文件 | 提供者 | 说明 |
-|--------|--------|------|
-| `ws2_32.lib` | Windows SDK | Winsock2（TCP 通信） |
-| `dbghelp.lib` | Windows SDK | StackWalk64 / SymInitialize / UnDecorateSymbolNameA |
-| `kernel32.lib` | Windows SDK | 隐式链接（CreateThread / Sleep 等） |
-
-### Visual Studio 编译
-
-#### 方式 1：Developer Command Prompt（推荐）
-
-1. 打开 **开始菜单** → 搜索 **"Developer Command Prompt for VS"**
-
-2. 选择对应的版本：
-   - **x64 Native Tools Command Prompt for VS** → 编译 64 位 DLL
-   - **x86 Native Tools Command Prompt for VS** → 编译 32 位 DLL
-
-3. 切换到插件目录并编译：
+1. 打开 **开始菜单** → 搜索 **"x64 Native Tools Command Prompt for VS 2022"**
+2. 切换到项目目录并执行：
 
 ```cmd
 cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
 
-:: x64 编译
-cl /LD /O2 ce-mcp-plugin.c /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+:: x64 编译 (多文件)
+cl /TC /LD /O2 plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 
 :: x86 编译
-cl /LD /O2 ce-mcp-plugin.c /Fe:ce-mcp-plugin-x86.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+cl /TC /LD /O2 plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c /Fe:ce-mcp-plugin-x86.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 ```
 
-#### 方式 2：普通 cmd（需先运行 vcvars）
+> `/TC` 强制将所有 `.c` 文件视为 C 源码。
+
+### 方式 2：手动设置 vcvars
 
 ```cmd
-:: 设置 VS 环境变量（根据安装路径调整）
-call "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Auxiliary\Build\vcvars64.bat"
-
-:: 然后编译
+call "C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
-cl /LD /O2 ce-mcp-plugin.c /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+cl /TC /LD /O2 plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 ```
 
-#### 方式 3：VS IDE 创建项目
+### 方式 3：VS IDE 创建项目
 
-1. **File** → **New** → **Project from Existing Code**
-2. 项目类型选 **Dynamic Link Library (DLL)**
-3. 添加 `ce-mcp-plugin.c` 和 `ce-mcp-plugin.def`
-4. **Project Properties** → **Linker** → **Input** → **Additional Dependencies** 添加：
-   ```
-   ws2_32.lib dbghelp.lib
-   ```
-5. **C/C++** → **General** → **Additional Include Directories** 添加 `sdk/` 目录
-6. 选择 **x64** 或 **x86** 配置，Build
+1. **File** → **New** → **Project** → **Dynamic Link Library (DLL)**
+2. 添加所有 `.c` 文件和 `plugin.h`、`.def` 文件
+3. **Linker** → **Input** → **Additional Dependencies**: `ws2_32.lib; dbghelp.lib`
+4. **C/C++** → **General** → **Additional Include Directories**: 添加 `sdk/` 目录
+5. **C/C++** → **Advanced** → **Compile As**: `Compile as C Code (/TC)`
+6. Build
 
-### 编译参数说明
+### 编译参数
 
 | 参数 | 含义 |
 |------|------|
+| `/TC` | 强制 C 编译模式 |
 | `/LD` | 生成 DLL |
 | `/O2` | 优化速度 |
 | `/Fe:` | 指定输出文件名 |
 | `/link` | 传递给链接器的参数 |
-| `/DEF:` | 模块定义文件（控制导出符号） |
-
-编译完成后将生成的 `.dll` 复制到 CE 的插件目录（通常在 CE 安装目录下创建 `plugin` 文件夹），或通过 CE 菜单手动加载。
+| `/DEF:` | 模块定义文件 |
 
 ### 验证编译结果
 
 ```cmd
-:: 检查 DLL 是否成功导出了 CE 要求的三个函数
 dumpbin /EXPORTS ce-mcp-plugin-x64.dll
 ```
 
@@ -98,50 +105,6 @@ dumpbin /EXPORTS ce-mcp-plugin-x64.dll
 - `CEPlugin_GetVersion`
 - `CEPlugin_InitializePlugin`
 - `CEPlugin_DisablePlugin`
-
-## 支持的命令 (22条)
-
-### 基础分析
-| 命令 | 说明 | 请求示例 |
-|------|------|---------|
-| PING | 连接测试和进程信息 | `PING:\n` |
-| GET_PROCESS_LIST | 系统进程枚举 | `GET_PROCESS_LIST:\n` |
-| GET_MODULES | 进程模块列表 | `GET_MODULES:\n` |
-| GET_REGISTERS | 寄存器快照 | `GET_REGISTERS:\n` |
-| GET_CALLSTACK | 调用栈回溯（addr+模块名） | `GET_CALLSTACK:,16\n` |
-| READ_MEMORY | 读内存 | `READ_MEMORY:0x7FF6A0001000,256\n` |
-| DISASSEMBLE | 反汇编 | `DISASSEMBLE:0x7FF6A0001000,30\n` |
-
-### 符号与内存布局
-| 命令 | 说明 | 请求示例 |
-|------|------|---------|
-| GET_SYMBOL_INFO | 符号名 <-> 地址双向解析 | `GET_SYMBOL_INFO:kernel32.CreateFileA\n` |
-| ENUM_MEMORY_REGIONS | 完整内存区域枚举 (Base/Size/Protect/Type) | `ENUM_MEMORY_REGIONS:,500\n` |
-| ENUM_STRINGS | 内存字符串扫描 (类似 Unix strings) | `ENUM_STRINGS:0x140000000,0x140100000,4\n` |
-| GET_RTTI_CLASS | C++ RTTI 类名解析 (vtable->RTTI) | `GET_RTTI_CLASS:0x1A2B3C4D\n` |
-| RESOLVE_POINTER | 多级指针链解析 | `RESOLVE_POINTER:0x140000000,0x10,0x8,0x20\n` |
-
-### 代码分析
-| 命令 | 说明 | 请求示例 |
-|------|------|---------|
-| PREV_OPCODE | 向前查找相邻指令地址 | `PREV_OPCODE:0x140001000\n` |
-| NEXT_OPCODE | 向后查找相邻指令地址 | `NEXT_OPCODE:0x140001000\n` |
-| ASSEMBLE | 汇编指令 -> 机器码字节 | `ASSEMBLE:mov rax,[rcx+8],0x140001000\n` |
-
-### 断点与追踪
-| 命令 | 说明 | 请求示例 |
-|------|------|---------|
-| SET_BP | 硬件断点（自动续执行，按 RIP 分组，含调用栈） | `SET_BP:0x1A2B3C4D,1,15\n` |
-| REGISTER_TRACE | 跨函数寄存器追踪（入口/出口配对 + diff） | `REGISTER_TRACE:0x140001000,0x140001050,10\n` |
-
-### 扫描与注入
-| 命令 | 说明 | 请求示例 |
-|------|------|---------|
-| AOB_SCAN | 特征码搜索 (支持 ?? 通配符) | `AOB_SCAN:48 8B 05 ?? ?? ?? ??,game.exe\n` |
-| GENERATE_HOOK | AOB 注入脚本手动生成 | `GENERATE_HOOK:0x140001000,,1024\n` |
-| GENERATE_API_HOOK | CE 内置 API Hook 脚本生成 (更可靠) | `GENERATE_API_HOOK:kernel32.CreateFileA,myHack\n` |
-| MEMORY_SCAN | 精确值内存扫描 (byte/word/dword/qword/float/double/string) | `MEMORY_SCAN:2,100,0x140000000,0x150000000,500\n` |
-| MEMORY_SCAN_NEXT | 变/不变过滤链 (链式调用逐步缩小) | `MEMORY_SCAN_NEXT:1,500\n` |
 
 ## 协议
 
@@ -151,20 +114,90 @@ dumpbin /EXPORTS ce-mcp-plugin-x64.dll
 
 ## CE 7.5 兼容性说明
 
-本插件针对 **CE 7.5 SDK v6** 编写，API 调用与 SDK 头文件签名一致：
+本插件针对 **CE 7.5 SDK v6** 编写，API 调用与 SDK 头文件签名一致。
 
-- `Exported.Disassembler` — 直接函数指针（非 ppointer）
-- `Exported.ReadProcessMemory` — ppointer（二级指针），需 `(*Exported.ReadProcessMemory)(...)`
-- `Exported.GetThreadContext` — ppointer，需 `(*Exported.GetThreadContext)(...)`
-- `Exported.debug_setBreakpoint` / `debug_removeBreakpoint` — 直接函数指针
-- `Exported.Assembler` — 直接函数指针
-- `Exported.sym_nameToAddress` / `sym_addressToName` — 直接函数指针
-- `Exported.sym_generateAPIHookScript` — 直接函数指针
-- `Exported.previousOpcode` / `nextOpcode` — 直接函数指针
-- `Exported.GetAddressFromPointer` — 直接函数指针
-- `Exported.ProcessList` — 直接函数指针
-- `Exported.VirtualQueryEx` — ppointer
-- 模块枚举通过 `CreateToolhelp32Snapshot` + `Module32First`/`Module32Next` 实现
+### 直接函数指针（直接调用）
+
+| API | SDK typedef (行号) | Pascal 实现 (行号) |
+|-----|-------------------|-------------------|
+| `Disassembler` | L170 `CEP_DISASSEMBLER` → BOOL | `pluginexports.pas:793` |
+| `Assembler` | L169 `CEP_ASSEMBLER` → BOOL + *returnedsize | `pluginexports.pas:769` → PByteArray + pinteger |
+| `disassembleEx` | L188 `CEP_DISASSEMBLEEX` → BOOL (传入 pptrUint) | `pluginexports.pas:811` → 反汇编后更新 *address |
+| `debug_setBreakpoint` | L216 → BOOL | `plugin.pas:1997` |
+| `debug_removeBreakpoint` | L217 → BOOL | `plugin.pas:1998` |
+| `debug_continueFromBreakpoint` | L218 → BOOL | `plugin.pas:1999` |
+| `sym_nameToAddress` | L181 → BOOL | `pluginexports.pas:39` → param2: PPtrUInt |
+| `sym_addressToName` | L180 → BOOL | `pluginexports.pas:38` |
+| `sym_generateAPIHookScript` | L179 → BOOL (5参数) | `pluginexports.pas:417` → s.Text copy |
+| `previousOpcode` | L185 → DWORD (实际返回 ptrUint) | `pluginexports.pas:833` → ptrUint |
+| `nextOpcode` | L186 → DWORD (实际返回 ptrUint) | `pluginexports.pas:838` → ptrUint |
+| `GetAddressFromPointer` | L178 → UINT_PTR | `pluginexports.pas:33` → dword (遍历 offsets) |
+| `ProcessList` | L176 → BOOL | `pluginexports.pas:567` → %08X-name\r\n 格式 |
+| `RegisterFunction` | L165 → int (pluginid) | `pluginexports.pas:19` → ptOnDebugEvent=2 |
+
+### ppointer（二级指针，需解引用）
+
+插件使用 `plugin.h` 中定义的宏统一解引用：
+
+| 宏 | SDK 字段 | 实际类型 | Pascal 赋值 (plugin.pas) |
+|----|---------|---------|------------------------|
+| `RPM(hProc,...)` | `PVOID ReadProcessMemory` (L299) | `BOOL (__stdcall **)(HANDLE, LPCVOID, LPVOID, SIZE_T, SIZE_T*)` | L1880 `@@ReadProcessMemoryActual` |
+| `GTC(hThread,ctx)` | `PVOID GetThreadContext` (L301) | `BOOL (__stdcall **)(HANDLE, LPCONTEXT)` | L1882 `@@GetThreadContext` |
+| `OT(acc,inh,tid)` | `PVOID OpenThread` (L316) | `HANDLE (__stdcall **)(DWORD, BOOL, DWORD)` | L1897 `@@OpenThread` |
+| `CS(flags,pid)` | `PVOID CreateToolhelp32Snapshot` (L354) | `HANDLE (__stdcall **)(DWORD, DWORD)` | L1936 `@@CreateToolhelp32Snapshot` |
+| `M32F(snap,me)` | `PVOID Module32First` (L359) | `BOOL (__stdcall **)(HANDLE, LPMODULEENTRY32)` | L1941 `@@Module32First` |
+| `M32N(snap,me)` | `PVOID Module32Next` (L360) | `BOOL (__stdcall **)(HANDLE, LPMODULEENTRY32)` | L1942 `@@Module32Next` |
+| `T32F(snap,te)` | `PVOID Thread32First` (L357) | `BOOL (__stdcall **)(HANDLE, LPTHREADENTRY32)` | L1939 `@@Thread32First` |
+| `T32N(snap,te)` | `PVOID Thread32Next` (L358) | `BOOL (__stdcall **)(HANDLE, LPTHREADENTRY32)` | L1940 `@@Thread32Next` |
+| `VQE(hProc,addr,mbi,sz)` | `PVOID VirtualQueryEx` (L313) | `LONG (__stdcall **)(HANDLE, LPCVOID, PMEMORY_BASIC_INFORMATION, SIZE_T)` | L1894 `@@VirtualQueryExActual` |
+
+## 支持的命令 (22条)
+
+### 基础分析
+| 命令 | 说明 | 文件 |
+|------|------|------|
+| PING | 连接测试和进程信息 | plugin-analyze.c |
+| GET_PROCESS_LIST | 系统进程枚举 | plugin-analyze.c |
+| GET_MODULES | 进程模块列表 | plugin-analyze.c |
+| READ_MEMORY | 读内存 | plugin-analyze.c |
+
+### 寄存器与调用栈
+| 命令 | 说明 | 文件 |
+|------|------|------|
+| GET_REGISTERS | 寄存器快照 | plugin-debug.c |
+| GET_CALLSTACK | 调用栈回溯（addr+模块名） | plugin-debug.c |
+
+### 符号与内存布局
+| 命令 | 说明 | 文件 |
+|------|------|------|
+| GET_SYMBOL_INFO | 符号名 <-> 地址双向解析 | plugin-analyze.c |
+| ENUM_MEMORY_REGIONS | 完整内存区域枚举 (Base/Size/Protect/Type) | plugin-analyze.c |
+| ENUM_STRINGS | 内存字符串扫描 (类似 Unix strings) | plugin-analyze.c |
+| GET_RTTI_CLASS | C++ RTTI 类名解析 (vtable->RTTI) | plugin-analyze.c |
+| RESOLVE_POINTER | 多级指针链解析 | plugin-analyze.c |
+
+### 代码分析
+| 命令 | 说明 | 文件 |
+|------|------|------|
+| DISASSEMBLE | 反汇编 | plugin-analyze.c |
+| ASSEMBLE | 汇编指令 -> 机器码字节 | plugin-analyze.c |
+| PREV_OPCODE | 向前查找相邻指令地址 | plugin-analyze.c |
+| NEXT_OPCODE | 向后查找相邻指令地址 | plugin-analyze.c |
+
+### 断点与追踪
+| 命令 | 说明 | 文件 |
+|------|------|------|
+| SET_BP | 硬件断点（自动续执行，按 RIP 分组，含调用栈） | plugin-debug.c |
+| REGISTER_TRACE | 跨函数寄存器追踪（入口/出口配对 + diff） | plugin-debug.c |
+
+### 扫描与注入
+| 命令 | 说明 | 文件 |
+|------|------|------|
+| AOB_SCAN | 特征码搜索 (支持 ?? 通配符) | plugin-analyze.c |
+| MEMORY_SCAN | 精确值内存扫描 (byte/word/dword/qword/float/double/string) | plugin-scan.c |
+| MEMORY_SCAN_NEXT | 变/不变过滤链 (链式调用逐步缩小) | plugin-scan.c |
+| GENERATE_HOOK | AOB 注入脚本手动生成 | plugin-gen.c |
+| GENERATE_API_HOOK | CE 内置 API Hook 脚本生成 (更可靠) | plugin-gen.c |
 
 ## MCP 工具 (23个)
 

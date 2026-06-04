@@ -264,7 +264,10 @@ static HANDLE GetDebugThread(void) {
     if (!Exported.CreateToolhelp32Snapshot) return NULL;
     if (!Exported.Thread32First) return NULL;
 
-    HANDLE snap = (HANDLE)(*Exported.CreateToolhelp32Snapshot)(TH32CS_SNAPTHREAD, 0);
+    /* CE 7.5 plugin.pas:1936 — @@CreateToolhelp32Snapshot (pointer to function pointer).
+     * SDK .h:354 — PVOID. Cast to function pointer type before dereferencing. */
+    typedef HANDLE (WINAPI *CreateToolhelp32Snapshot_t)(DWORD, DWORD);
+    HANDLE snap = (HANDLE)(*(CreateToolhelp32Snapshot_t *)Exported.CreateToolhelp32Snapshot)(TH32CS_SNAPTHREAD, 0);
     if (snap == INVALID_HANDLE_VALUE) return NULL;
 
     DWORD pid = 0;
@@ -275,18 +278,24 @@ static HANDLE GetDebugThread(void) {
     te.dwSize = sizeof(THREADENTRY32);
 
     HANDLE result = NULL;
-    if ((*Exported.Thread32First)(snap, &te)) {
+    /* CE 7.5 plugin.pas:1939 — @@Thread32First (pointer to function pointer).
+     * SDK .h:357 — PVOID. */
+    typedef BOOL (WINAPI *Thread32First_t)(HANDLE, LPTHREADENTRY32);
+    if ((*(Thread32First_t *)Exported.Thread32First)(snap, &te)) {
         do {
             if (te.th32OwnerProcessID == pid) {
                 if (Exported.OpenThread) {
-                    result = (HANDLE)(*Exported.OpenThread)(
+                    /* CE 7.5 plugin.pas:1897 — @@OpenThread.
+                     * SDK .h:316 — PVOID. */
+                    typedef HANDLE (WINAPI *OpenThread_t)(DWORD, BOOL, DWORD);
+                    result = (*(OpenThread_t *)Exported.OpenThread)(
                         THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION |
                         THREAD_SUSPEND_RESUME,
                         FALSE, te.th32ThreadID);
                 }
                 break;
             }
-        } while ((*Exported.Thread32Next)(snap, &te));
+        } while ((*(Thread32Next_t *)Exported.Thread32Next)(snap, &te));
     }
 
     CloseHandle(snap);
@@ -431,7 +440,10 @@ static int __stdcall OnDebugEvent(LPDEBUG_EVENT DebugEvent) {
 
             HANDLE hThread = NULL;
             if (Exported.OpenThread) {
-                hThread = (HANDLE)(*Exported.OpenThread)(
+                /* CE 7.5 plugin.pas:1897 — @@OpenThread.
+     * SDK .h:316 — PVOID. */
+    typedef HANDLE (WINAPI *OpenThread_t)(DWORD, BOOL, DWORD);
+    hThread = (*(OpenThread_t *)Exported.OpenThread)(
                     THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION,
                     FALSE, DebugEvent->dwThreadId);
             }
@@ -633,7 +645,7 @@ static void cmd_GET_MODULES(Command *cmd) {
     if (Exported.OpenedProcessID)
         pid = *Exported.OpenedProcessID;
 
-    HANDLE snap = (HANDLE)(*Exported.CreateToolhelp32Snapshot)(
+    HANDLE snap = (HANDLE)(*(CreateToolhelp32Snapshot_t *)Exported.CreateToolhelp32Snapshot)(
         TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
     if (snap == INVALID_HANDLE_VALUE) {
         ERR("failed to create snapshot for pid %lu", pid);
@@ -648,7 +660,10 @@ static void cmd_GET_MODULES(Command *cmd) {
     pos += sprintf_s(result + pos, sizeof(result) - pos, "{\"modules\":[");
     int first = 1;
 
-    if ((*Exported.Module32First)(snap, &me)) {
+    /* CE 7.5 plugin.pas:1941 — @@Module32First.
+     * SDK .h:359 — PVOID. */
+    typedef BOOL (WINAPI *Module32First_t)(HANDLE, LPMODULEENTRY32);
+    if ((*(Module32First_t *)Exported.Module32First)(snap, &me)) {
         do {
             pos += sprintf_s(result + pos, sizeof(result) - pos,
                              "%s{\"name\":\"%s\",\"base\":\"0x%llX\",\"size\":%lu}",
@@ -657,7 +672,7 @@ static void cmd_GET_MODULES(Command *cmd) {
                              (unsigned long long)me.modBaseAddr,
                              me.modBaseSize);
             first = 0;
-        } while ((*Exported.Module32Next)(snap, &me) && pos < (int)sizeof(result) - 300);
+        } while ((*(Module32Next_t *)Exported.Module32Next)(snap, &me) && pos < (int)sizeof(result) - 300);
     }
 
     CloseHandle(snap);
@@ -991,7 +1006,7 @@ static void cmd_AOB_SCAN(Command *cmd) {
     if (Exported.OpenedProcessID)
         pid = *Exported.OpenedProcessID;
 
-    HANDLE snap = (HANDLE)(*Exported.CreateToolhelp32Snapshot)(
+    HANDLE snap = (HANDLE)(*(CreateToolhelp32Snapshot_t *)Exported.CreateToolhelp32Snapshot)(
         TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
     if (snap == INVALID_HANDLE_VALUE) {
         ERR("failed to create snapshot");
@@ -1003,18 +1018,24 @@ static void cmd_AOB_SCAN(Command *cmd) {
 
     if (moduleName && moduleName[0]) {
         /* Search for the specified module */
-        if ((*Exported.Module32First)(snap, &me)) {
+        /* CE 7.5 plugin.pas:1941 — @@Module32First.
+     * SDK .h:359 — PVOID. */
+    typedef BOOL (WINAPI *Module32First_t)(HANDLE, LPMODULEENTRY32);
+    if ((*(Module32First_t *)Exported.Module32First)(snap, &me)) {
             do {
                 if (_stricmp(me.szModule, moduleName) == 0) {
                     base = (UINT_PTR)me.modBaseAddr;
                     size = me.modBaseSize;
                     break;
                 }
-            } while ((*Exported.Module32Next)(snap, &me));
+            } while ((*(Module32Next_t *)Exported.Module32Next)(snap, &me));
         }
     } else {
         /* Use first module (main executable) */
-        if ((*Exported.Module32First)(snap, &me)) {
+        /* CE 7.5 plugin.pas:1941 — @@Module32First.
+     * SDK .h:359 — PVOID. */
+    typedef BOOL (WINAPI *Module32First_t)(HANDLE, LPMODULEENTRY32);
+    if ((*(Module32First_t *)Exported.Module32First)(snap, &me)) {
             base = (UINT_PTR)me.modBaseAddr;
             size = me.modBaseSize;
         }
@@ -1091,7 +1112,10 @@ static void cmd_GET_CALLSTACK(Command *cmd) {
     if (tidStr && tidStr[0]) {
         DWORD tid = (DWORD)strtoul(tidStr, NULL, 10);
         if (Exported.OpenThread) {
-            hThread = (HANDLE)(*Exported.OpenThread)(
+            /* CE 7.5 plugin.pas:1897 — @@OpenThread.
+     * SDK .h:316 — PVOID. */
+    typedef HANDLE (WINAPI *OpenThread_t)(DWORD, BOOL, DWORD);
+    hThread = (*(OpenThread_t *)Exported.OpenThread)(
                 THREAD_GET_CONTEXT | THREAD_QUERY_INFORMATION |
                 THREAD_SUSPEND_RESUME, FALSE, tid);
         }
@@ -1790,12 +1814,15 @@ static void cmd_MEMORY_SCAN(Command *cmd) {
     } else {
         /* Default: scan from first module base */
         if (Exported.Module32First && Exported.CreateToolhelp32Snapshot) {
-            HANDLE snap = (HANDLE)(*Exported.CreateToolhelp32Snapshot)(
+            HANDLE snap = (HANDLE)(*(CreateToolhelp32Snapshot_t *)Exported.CreateToolhelp32Snapshot)(
                 TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
             if (snap != INVALID_HANDLE_VALUE) {
                 MODULEENTRY32 me;
                 me.dwSize = sizeof(MODULEENTRY32);
-                if ((*Exported.Module32First)(snap, &me)) {
+                /* CE 7.5 plugin.pas:1941 — @@Module32First.
+     * SDK .h:359 — PVOID. */
+    typedef BOOL (WINAPI *Module32First_t)(HANDLE, LPMODULEENTRY32);
+    if ((*(Module32First_t *)Exported.Module32First)(snap, &me)) {
                     startAddr = (UINT_PTR)me.modBaseAddr;
                     endAddr = startAddr + me.modBaseSize;
                 }
@@ -2397,12 +2424,15 @@ static void cmd_GET_RTTI_CLASS(Command *cmd) {
         {
             DWORD pid = *Exported.OpenedProcessID;
             if (Exported.Module32First && Exported.CreateToolhelp32Snapshot) {
-                HANDLE snap = (HANDLE)(*Exported.CreateToolhelp32Snapshot)(
+                HANDLE snap = (HANDLE)(*(CreateToolhelp32Snapshot_t *)Exported.CreateToolhelp32Snapshot)(
                     TH32CS_SNAPMODULE | TH32CS_SNAPMODULE32, pid);
                 if (snap != INVALID_HANDLE_VALUE) {
                     MODULEENTRY32 me;
                     me.dwSize = sizeof(MODULEENTRY32);
-                    if ((*Exported.Module32First)(snap, &me)) {
+                    /* CE 7.5 plugin.pas:1941 — @@Module32First.
+     * SDK .h:359 — PVOID. */
+    typedef BOOL (WINAPI *Module32First_t)(HANDLE, LPMODULEENTRY32);
+    if ((*(Module32First_t *)Exported.Module32First)(snap, &me)) {
                         do {
                             UINT_PTR modBase = (UINT_PTR)me.modBaseAddr;
                             UINT_PTR modEnd = modBase + me.modBaseSize;
@@ -2410,7 +2440,7 @@ static void cmd_GET_RTTI_CLASS(Command *cmd) {
                                 inModule = TRUE;
                                 break;
                             }
-                        } while ((*Exported.Module32Next)(snap, &me));
+                        } while ((*(Module32Next_t *)Exported.Module32Next)(snap, &me));
                     }
                     CloseHandle(snap);
                 }
@@ -2486,12 +2516,13 @@ static void cmd_GET_RTTI_CLASS(Command *cmd) {
                                 /* rttihelper.pas:168-176 — UnDecorateSymbolName(..., UNDNAME_NAME_ONLY).
                              * Add "?" prefix (Pascal: s:='?'+cp) to form full decorated name,
                              * then UnDecorateSymbolNameA extracts the undecorated name. */
+                                char *className = decorated + 4;
                             {
                                 char decoratedForDemangle[256];
                                 decoratedForDemangle[0] = '?';
                                 strncpy_s(decoratedForDemangle + 1,
                                           sizeof(decoratedForDemangle) - 1,
-                                          className, _TRUNCATE);
+                                          decorated + 4, _TRUNCATE);
                                 decoratedForDemangle[sizeof(decoratedForDemangle) - 1] = '\0';
 
                                 char undecorated[256] = {0};
@@ -2504,15 +2535,15 @@ static void cmd_GET_RTTI_CLASS(Command *cmd) {
                                 /* rttihelper.pas:179 — isvalidstring: every char in [32,126] */
                                 char *finalName = (nameLen > 0 && undecorated[0])
                                     ? undecorated
-                                    : className;  /* fallback: raw decorated (no .?AV) */
+                                    : (decorated + 4);  /* fallback */
                                 BOOL valid = TRUE;
                                 for (char *c = finalName; *c; c++) {
                                     unsigned char uc = (unsigned char)*c;
                                     if (uc < 32 || uc > 126) { valid = FALSE; break; }
                                 }
-                                if (!valid && finalName != className) {
+                                if (!valid && finalName != (decorated + 4)) {
                                     /* rttihelper.pas:179-182 — classname:=cp fallback */
-                                    finalName = className;
+                                    finalName = decorated + 4;
                                     valid = TRUE;
                                     for (char *c = finalName; *c; c++) {
                                         unsigned char uc = (unsigned char)*c;
@@ -2524,10 +2555,11 @@ static void cmd_GET_RTTI_CLASS(Command *cmd) {
                                     /* rttihelper.pas:185-194 — hex fallback */
                                     char hexFall[64] = "unknown classid ";
                                     int hp = (int)strlen(hexFall);
-                                    for (int i = 0; i < 16 && className[i] && hp < 55; i++)
+                                    char *cp = decorated + 4;
+                                    for (int i = 0; i < 16 && cp[i] && hp < 55; i++)
                                         hp += sprintf_s(hexFall + hp,
                                                         sizeof(hexFall) - hp,
-                                                        "%02X", (unsigned char)className[i]);
+                                                        "%02X", (unsigned char)cp[i]);
                                     OK("{\"address\":\"0x%llX\",\"vtable\":\"0x%llX\","
                                        "\"class_name\":\"%s\",\"method\":\"msvc\",\"found\":true}",
                                        (unsigned long long)objAddr,
