@@ -4,6 +4,11 @@
       "command": "../venv/Scripts/python.exe",
       "args": ["-m", "src.server"],
       "cwd": "${PROJECT_ROOT}/dnlib-mcp"
+    },
+    "ce-mcp": {
+      "command": "../venv/Scripts/python.exe",
+      "args": ["-m", "src.server"],
+      "cwd": "${PROJECT_ROOT}/ce-mcp"
     }
   }
 }
