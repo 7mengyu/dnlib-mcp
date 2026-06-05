@@ -84,7 +84,7 @@ extern int mcpPort;
 /* ========== Command struct ========== */
 typedef struct {
     char command[64];
-    char params[512];
+    char params[2048];
 } Command;
 
 /* ========== Breakpoint monitoring ========== */

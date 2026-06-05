@@ -86,66 +86,53 @@ CE 插件作为 TCP **客户端**，启动时自动连接 Python MCP Server。MC
 - Cheat Engine 7.5+
 - 预编译的插件 DLL（`ce-mcp/ce-plugin/` 下已提供 x64/x86 版本）
 
-### 步骤 1：复制 DLL 到 CE 插件目录
+### 步骤 1：CE 加载插件dll
 
-将 `ce-mcp/ce-plugin/ce-mcp-plugin-x64.dll`（或 x86 版本）复制到 Cheat Engine 安装目录下：
-
-```
-C:\Program Files\Cheat Engine 7.5\autorun\dll\
-```
-
-> 如果没有 `autorun\dll` 目录，手动创建即可。CE 启动时会自动扫描该目录并加载 DLL 插件。
+- x64 DLL 用于附加 64 位进程，x86 DLL 用于附加 32 位进程
+- CE `autorun/dlls` 目录不支持自动加载 DLL（仅 `autorun/` 根目录支持 Lua 脚本自动执行）
+- **正确的加载方式**：CE 菜单 → Edit → Settings → Plugins → Add，手动选择 DLL 文件
 
 ### 步骤 2：启动 Python MCP Bridge
 
-打开终端，进入项目根目录：
+打开终端，进入 `ce-mcp` 子目录：
 
 ```cmd
-cd C:\Users\scydr\Desktop\123\nixiang-mcp
-venv\Scripts\python -m ce-mcp.src.server
-```
-
-看到类似输出说明 Bridge 已在 `127.0.0.1:8888` 等待 CE 插件连接。
-
-### 步骤 3：打开 Cheat Engine 附加进程
-
-1. 启动 Cheat Engine 7.5
-2. 通过 File → Open Process 附加目标进程
-3. CE 的 Plugin 菜单中应能看到 **"CE MCP Plugin v0.4"**
-4. 插件启动后会自动连接 `127.0.0.1:8888`
-
-### 步骤 4：在 Claude Code 中使用
-
-在项目根目录启动 Claude Code：
-
-```cmd
-cd C:\Users\scydr\Desktop\123\nixiang-mcp
+cd C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp
 claude
 ```
 
-输入 `/mcp` 确认 `ce-mcp` 状态为已连接，然后可以直接使用工具：
+> `.mcp.json` 会自动启动 Bridge 并注册 `ce-mcp` 服务器。
+
+### 步骤 3：打开 Cheat Engine 附加进程
+
+1. **以管理员身份**启动 Cheat Engine 7.5
+2. 手动加载插件：Edit → Settings → Plugins → Add → 选择 `ce-mcp-plugin-x64.dll`
+3. 通过 File → Open Process 附加目标进程
+4. CE 标题栏会显示 `CE MCP Plugin v0.x - Connected to bridge`，表示插件已连接 Bridge
+
+### 步骤 4：在 Claude Code 中使用
+
+启动 Claude Code 后，输入 `/mcp` 确认 `ce-mcp` 状态为 ✔ connected。
+
+### 验证测试
+
+附加系统 notepad.exe 进程后，用以下命令验证链路：
 
 ```
-ce_ping
-ce_get_modules
-ce_disassemble 0x7FF12345678
+# 1. 测试连接和进程信息
+检查 CE 连接状态
+
+# 2. 获取进程模块列表
+列出当前进程的模块
+
+# 3. 反汇编入口附近代码
+反编译 notepad.exe 入口附近代码，20 条指令
+
+# 4. 读取内存（任选一个模块基址）
+读取 0x<模块基址> 处内存，256 字节
 ```
 
-## 快速验证（不启动 CE）
-
-可以只用 telnet/nc 模拟 CE 插件连接，验证 Python Bridge 是否正常：
-
-```cmd
-:: 终端 1 - 启动 Bridge
-cd C:\Users\scydr\Desktop\123\nixiang-mcp
-venv\Scripts\python -m ce-mcp.src.server
-
-:: 终端 2 - 模拟 CE 插件连接
-telnet 127.0.0.1 8888
-:: 连接成功后输入:
-PING:
-:: 应收到 OK:{"pong":true,...} 响应
-```
+四项都能返回正常结果，说明 CE → Bridge → MCP → Claude Code 链路完整。
 
 ## 协议
 

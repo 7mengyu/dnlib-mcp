@@ -67,14 +67,10 @@ class CEBridge:
 
         logger.info("CE Plugin connected from %s", addr)
 
-        # Keep the connection alive — read in background to detect disconnect
+        # Wait for connection to close (writer.wait_closed() doesn't read
+        # from the reader, so it won't conflict with send_command's readline).
         try:
-            while True:
-                data = await reader.read(1024)
-                if not data:
-                    break
-                # Unexpected data from plugin (should only respond to commands)
-                logger.debug("Unexpected data from plugin: %r", data[:200])
+            await writer.wait_closed()
         except Exception:
             pass
         finally:

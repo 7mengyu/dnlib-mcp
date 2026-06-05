@@ -147,8 +147,16 @@ UINT_PTR ParseAddr(const char *s) {
     return s ? (UINT_PTR)strtoull(s, NULL, 16) : 0;
 }
 
+/* 环形缓冲区：避免多次调用 GetParam 时因 static buffer 被覆盖而导致
+ * 前一次返回值失效。前缀赋值体为 5 (MEMORY_SCAN) 预留 5 个槽位。 */
+#define GP_BUF_COUNT 5
+#define GP_BUF_SIZE  1024
+
 char *GetParam(char *params, int idx) {
-    static char buf[256];
+    static char buf[GP_BUF_COUNT][GP_BUF_SIZE];
+    static int bufIdx = 0;
+
+    int slot = (bufIdx++) % GP_BUF_COUNT;
     char *p = params;
     for (int i = 0; i < idx; i++) {
         p = strchr(p, ',');
@@ -157,10 +165,10 @@ char *GetParam(char *params, int idx) {
     }
     char *end = strchr(p, ',');
     size_t len = end ? (size_t)(end - p) : strlen(p);
-    if (len > sizeof(buf) - 1) len = sizeof(buf) - 1;
-    memcpy(buf, p, len);
-    buf[len] = '\0';
-    return buf;
+    if (len > GP_BUF_SIZE - 1) len = GP_BUF_SIZE - 1;
+    memcpy(buf[slot], p, len);
+    buf[slot][len] = '\0';
+    return buf[slot];
 }
 
 /* ========== Get thread handle for context reads ========== */
@@ -404,7 +412,7 @@ DWORD WINAPI PluginThread(LPVOID param) {
             continue;
         }
 
-        char buf[1024];
+        char buf[4096];
         int len = recv(sock, buf, sizeof(buf) - 1, 0);
         if (len > 0) {
             buf[len] = '\0';
@@ -413,7 +421,7 @@ DWORD WINAPI PluginThread(LPVOID param) {
             char *line = strtok_s(buf, "\n\r", &ctx);
             while (line) {
                 Command cmd;
-                char lineBuf[576];
+                char lineBuf[2304];
                 strncpy_s(lineBuf, sizeof(lineBuf), line, _TRUNCATE);
                 if (ParseCommand(lineBuf, &cmd))
                     ExecuteCommand(&cmd);

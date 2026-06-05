@@ -186,11 +186,23 @@ void cmd_DISASSEMBLE(Command *cmd) {
     UINT_PTR current = addr;
     for (int i = 0; i < count; i++) {
         char inst[256] = {0};
-        if (!Exported.Disassembler(current, inst, sizeof(inst) - 1))
-            break;
+        if (!Exported.Disassembler(current, inst, sizeof(inst) - 1)) {
+            /* CE 7.5 SDK 头中 Disassembler 声明为 direct fn ptr（L170），
+             * 但 pplugin.pas 中为 Nil（3.2.3.1）时实为 ppointer 方案。
+             * 若直接调用失败，走 disassembleEx 作为回退方案。 */
+            if (Exported.disassembleEx)
+                if (!Exported.disassembleEx((UINT_PTR)&current, inst, sizeof(inst) - 1))
+                    break;
+                else
+                    continue;
+            else
+                break;
+        }
 
-        /* ce_disassemble(pptrUint,...) advances *address
-         * CE 7.5 pluginexports.pas:811 */
+        /* 如果 Disassembler 成功（不修改 current），用 disassembleEx
+         * 推进地址以获取下一条指令的起始位置。
+         * disassembleEx(address: pptrUint, ...) — pluginexports.pas:811
+         * 会解引用 *address 并在反汇编后写回更新值。 */
         UINT_PTR next = current;
         if (Exported.disassembleEx)
             Exported.disassembleEx((UINT_PTR)&next, NULL, 0);
@@ -327,16 +339,16 @@ void cmd_AOB_SCAN(Command *cmd) {
     if (!pattern) { ERR("missing pattern"); return; }
 
     /* Parse pattern "AA BB ?? DD" into byte + mask arrays */
-    BYTE pat[128];
-    BYTE mask[128];
+    BYTE pat[512];
+    BYTE mask[512];
     int patLen = 0;
 
     char *ctx = NULL;
-    char patternCopy[512];
+    char patternCopy[2048];
     strncpy_s(patternCopy, sizeof(patternCopy), pattern, _TRUNCATE);
 
     char *tok = strtok_s(patternCopy, " ", &ctx);
-    while (tok && patLen < 128) {
+    while (tok && patLen < 512) {
         if (strcmp(tok, "??") == 0 || strcmp(tok, "?") == 0) {
             mask[patLen] = 0;
             pat[patLen] = 0;
