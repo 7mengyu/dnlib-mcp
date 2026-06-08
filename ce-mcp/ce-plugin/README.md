@@ -89,12 +89,7 @@ cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
 del /q *.obj *.lib *.exp 2>nul
 
 :: x86 编译
-cl /utf-8 /TC /LD /O2 /I"sdk\zydis\include" /I"sdk\zydis\src" ^
-    plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c ^
-    sdk\zydis\src\*.c sdk\zydis\src\API\*.c ^
-    /DZYDIS_STATIC_BUILD /DZYCORE_STATIC_BUILD ^
-    /Fe:ce-mcp-plugin-x86.dll ^
-    /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+cl /utf-8 /TC /LD /O2 /I"sdk\zydis\include" /I"sdk\zydis\src" plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c sdk\zydis\src\*.c sdk\zydis\src\API\*.c /DZYDIS_STATIC_BUILD /DZYCORE_STATIC_BUILD  /Fe:ce-mcp-plugin-x86.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 ```
 
 > `/TC` 强制将所有 `.c` 文件视为 C 源码。
