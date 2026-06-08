@@ -74,20 +74,10 @@ cd /d C:\Users\scydr\Desktop\123\nixiang-mcp\ce-mcp\ce-plugin
 del /q *.obj *.lib *.exp 2>nul
 
 :: 发布版 — 包含 Zydis 静态反汇编引擎
-cl /utf-8 /TC /LD /O2 /I"sdk\zydis\include" /I"sdk\zydis\src" ^
-    plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c ^
-    sdk\zydis\src\*.c sdk\zydis\src\API\*.c ^
-    /DZYDIS_STATIC_BUILD /DZYCORE_STATIC_BUILD ^
-    /Fe:ce-mcp-plugin-x64.dll ^
-    /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+cl /utf-8 /TC /LD /O2 /I"sdk\zydis\include" /I"sdk\zydis\src" plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c sdk\zydis\src\*.c sdk\zydis\src\API\*.c /DZYDIS_STATIC_BUILD /DZYCORE_STATIC_BUILD /Fe:ce-mcp-plugin-x64.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 
 :: 调试版 (PDB 符号 + 禁用优化，出问题时用 VS 附加 CE 断点排查)
-cl /utf-8 /TC /LD /Od /Zi /I"sdk\zydis\include" /I"sdk\zydis\src" ^
-    plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c ^
-    sdk\zydis\src\*.c sdk\zydis\src\API\*.c ^
-    /DZYDIS_STATIC_BUILD /DZYCORE_STATIC_BUILD ^
-    /Fe:ce-mcp-plugin-x64-debug.dll ^
-    /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
+cl /utf-8 /TC /LD /Od /Zi /I"sdk\zydis\include" /I"sdk\zydis\src" plugin-core.c plugin-debug.c plugin-analyze.c plugin-scan.c plugin-gen.c sdk\zydis\src\*.c sdk\zydis\src\API\*.c /DZYDIS_STATIC_BUILD /DZYCORE_STATIC_BUILD /Fe:ce-mcp-plugin-x64-debug.dll /link ws2_32.lib dbghelp.lib /DEF:ce-mcp-plugin.def
 ```
 
 3. 打开 **"x86 Native Tools Command Prompt for VS 2022"**（注：x86 和 x64 必须在各自对应的终端编译）并执行：

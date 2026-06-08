@@ -267,7 +267,7 @@ void cmd_GENERATE_API_HOOK(Command *cmd) {
             return;
         }
 
-        sprintf_s(resolvedAddr, sizeof(resolvedAddr), "0x%llX",
+        sprintf_s(resolvedAddr, sizeof(resolvedAddr), "%llX",
                   (unsigned long long)addr);
         inputAddr = resolvedAddr;
     }
